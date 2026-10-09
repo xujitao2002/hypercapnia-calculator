@@ -1,0 +1,13 @@
+# Keep this repository a generic static research interface.
+.openai/
+.vercel/
+node_modules/
+*.pickle
+*.pkl
+*.csv
+models.json
+model-pack.json
+*model_pack*.json
+*predictions*
+*patient*
+*shap_background*

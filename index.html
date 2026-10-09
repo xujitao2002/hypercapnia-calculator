@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="高碳酸血症ICU研究计算器：12/24小时节点，同病例比较首次与最新血气信息。模型和输入在浏览器本地使用。">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'">
+  <title>高碳酸血症研究计算器</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23102d49'/%3E%3Cpath d='M6 17h5l3-7 4 14 3-7h5' fill='none' stroke='%2345c6bd' stroke-width='3'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles.css">
+  <script type="module" src="app.mjs"></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#calculator"><span class="brand-icon" aria-hidden="true">H</span><span>高碳酸血症研究计算器</span></a>
+    <a class="navlink" href="#evidence">研究证据</a>
+  </header>
+  <main>
+    <section class="intro" id="calculator">
+      <div><p class="eyebrow">RESPIRATORY &amp; CRITICAL CARE</p><h1>比较血气历史与最新状态</h1><p class="lead">估计12/24小时节点之后、本次住院内死亡的概率。适用于首份动脉PaCO₂&gt;45 mmHg的成人ICU研究人群。</p></div>
+      <span class="research-badge">研究复现工具</span>
+    </section>
+    <section class="model-loader" aria-labelledby="loader-title">
+      <div><h2 id="loader-title">载入本机研究模型</h2><p>选择随本研究交付的JSON模型包。文件和临床输入只在浏览器内存中使用。</p></div>
+      <div class="loader-action"><label class="file-button" for="model-file">选择模型文件<input id="model-file" type="file" accept=".json,application/json"></label><p id="model-status" role="status">尚未载入</p></div>
+    </section>
+    <div class="workspace">
+      <form id="risk-form" novalidate>
+        <section class="panel">
+          <div class="section-heading"><h2>01 <span>计算节点</span></h2><span id="input-mode" class="subtle-chip">手动输入</span></div>
+          <div class="controls-row"><label>入ICU后的节点<select name="landmark" id="landmark"><option value="24">24小时 · 主分析</option><option value="12">12小时 · 次级分析</option></select></label><label>复评血气<select name="reassessment" id="reassessment"><option value="paired">有可靠配对血气</option><option value="none" id="fallback-option">无可靠复评 · 备用模型</option></select></label></div>
+          <div class="checks"><label><input type="checkbox" name="at_landmark" required> 患者已满所选节点，仍存活且在ICU</label><label><input type="checkbox" name="available_by_landmark" required> 所填信息在节点前已可获得</label></div>
+        </section>
+        <section class="panel">
+          <div class="section-heading"><h2>02 <span>配对动脉血气</span></h2><p>pH与PaCO₂来自同次评估</p></div>
+          <div class="gas-grid">
+            <fieldset><legend>首次 · 入ICU 0–6小时</legend><label>pH<input name="first_ph" type="number" step="any" min="6.5" max="8" required placeholder="例如 7.26"></label><label>PaCO₂ <span>mmHg</span><input name="first_paco2" type="number" step="any" min="45.000001" max="300" required placeholder="须大于45"></label><label>采样距入ICU <span>小时</span><input name="first_hour" type="number" step="any" min="0" max="6" required placeholder="0–6"></label></fieldset>
+            <fieldset id="latest-fields"><legend id="latest-legend">复评 · 入ICU 18–24小时</legend><label>pH<input name="latest_ph" type="number" step="any" min="6.5" max="8" required placeholder="例如 7.35"></label><label>PaCO₂ <span>mmHg</span><input name="latest_paco2" type="number" step="any" min="5" max="300" required placeholder="例如 48"></label><label>采样距入ICU <span>小时</span><input name="latest_hour" type="number" step="any" min="18" max="24" required placeholder="18–24"></label></fieldset>
+          </div>
+          <p id="window-note" class="field-note">24小时有可靠复评时显示H/L对照；无可靠复评时使用B_all备用模型。</p>
+        </section>
+        <section class="panel">
+          <div class="section-heading"><h2>03 <span>共享临床信息</span></h2><p>未知项目留空</p></div>
+          <div class="clinical-grid">
+            <label>年龄 <span>岁</span><input name="age" type="number" step="any" min="18" max="120" required placeholder="18岁及以上"><small>大于90岁统一按90岁</small></label>
+            <label>性别<select name="male"><option value="">未知</option><option value="0">女性</option><option value="1">男性</option></select></label>
+            <label>心率 <span>次/分</span><input name="heart_rate" type="number" step="any" min="20" max="250" placeholder="20–250"></label>
+            <label>呼吸频率 <span>次/分</span><input name="respiratory_rate" type="number" step="any" min="2" max="80" placeholder="2–80"></label>
+            <label>MAP <span>mmHg</span><input name="map" type="number" step="any" min="20" max="200" placeholder="20–200"></label>
+            <label>SpO₂ <span>%</span><input name="spo2" type="number" step="any" min="40" max="100" placeholder="40–100"></label>
+            <label>乳酸 <span>mmol/L</span><input name="lactate" type="number" step="any" min="0" max="50" placeholder="0–50"></label>
+            <label>乳酸距节点 <span>小时</span><input name="lactate_age_hours" type="number" step="any" min="0" max="24" placeholder="与乳酸一起填写"></label>
+            <label>肌酐 <span>mg/dL</span><input name="creatinine" type="number" step="any" min="0.000001" max="30" placeholder="血化学肌酐"></label>
+            <label>肌酐距节点 <span>小时</span><input name="creatinine_age_hours" type="number" step="any" min="0" max="24" placeholder="与肌酐一起填写"></label>
+            <label>可比较GCS <span>分</span><input name="gcs_total" type="number" step="1" min="3" max="15" placeholder="3–15"><small>气管插管不可测时留空</small></label>
+          </div>
+          <p class="field-note">生命体征和GCS使用节点前6小时最新可比较记录；乳酸、肌酐使用入ICU后最新可用化验，注明距节点时间。</p>
+        </section>
+        <div id="form-error" class="error" role="alert" hidden></div>
+        <div class="form-actions"><button id="calculate" type="submit" disabled>计算并比较</button><button id="example" type="button" class="secondary">填入合成示例</button><button id="clear" type="button" class="text-button">清空输入</button></div>
+      </form>
+      <aside class="results" aria-labelledby="results-title">
+        <div class="result-top"><p class="eyebrow">IN-HOSPITAL MORTALITY</p><h2 id="results-title">节点后院内死亡风险</h2><p id="result-context">24小时 · 同病例H/L比较</p></div>
+        <div id="result-empty" class="result-empty"><span class="empty-mark" aria-hidden="true">—</span><p>载入模型并填写血气后计算</p><small>缺失临床项目按冻结流程处理</small></div>
+        <div id="result-values" hidden>
+          <div class="probability main-prob"><p id="h-label">包含首次血气 · H</p><div><strong id="h-risk">—</strong><span>%</span></div></div>
+          <div class="probability compare-prob" id="l-block"><p>仅最新血气 · L</p><div><strong id="l-risk">—</strong><span>%</span></div></div>
+          <div class="probability-difference" id="difference-block"><span>预测概率差 H−L</span><strong id="probability-difference">—</strong><small>同病例模型输出差，单位：百分点</small></div>
+          <dl class="result-meta"><div><dt>使用流程</dt><dd id="model-path">—</dd></div><div><dt>临床缺失</dt><dd id="missing-count">—</dd></div><div><dt>模型版本</dt><dd>2026-10-09</dd></div></dl>
+        </div>
+        <p class="result-footnote">研究概率用于复现和方法比较。临床应用价值需结合独立验证与具体决策场景评价。</p>
+      </aside>
+    </div>
+    <section class="evidence" id="evidence">
+      <div class="section-heading"><h2>研究证据</h2><p>MIMIC开发 · eICU冻结验证</p></div>
+      <div class="evidence-grid"><div><p class="metric-label">24小时H模型外部AUC</p><strong class="metric">0.754</strong><p>2,506次住院 · 154家医院</p></div><div><p class="metric-label">首次血气的ΔBrier</p><strong class="metric">+0.00027</strong><p>95%区间 −0.00110至+0.00169</p></div><div><p class="metric-label">24小时备用流程更新比例</p><strong class="metric">23.06%</strong><p>2,506 / 10,865次住院</p></div></div>
+      <p class="evidence-summary">主结果和12小时扩展的区间均包含0，现有数据尚未确认首次血气的外部预测增量。网页提供标准化输入、模型对照和可复现计算。</p>
+      <details><summary>研究总体SHAP解释</summary><p>冻结H24完整概率流程的logit归因；eICU预设随机128例。这是研究总体解释，当前输入的个体解释另需专门验证。</p><img src="shap-global.png" alt="冻结H24模型的全局SHAP重要性，年龄、最新pH、乳酸、GCS与肌酐归因居前" loading="lazy"></details>
+      <details><summary>适用范围与数据质量</summary><p>首份动脉血气位于入ICU0–6小时，PaCO₂&gt;45 mmHg；24小时复评位于18–24小时，12小时复评位于8–12小时。估计对象为节点后该次住院内死亡。未建立12小时无复评备用模型。</p><p>11项共享临床背景包含缺失处理。主队列MIMIC GCS缺失79.9%、eICU乳酸缺失50.8%；eICU通气支持类别未知91.3%。节点与信息可用时间依据原始记录代理判定。</p><p>派生模型按来源访问条件在本地管理。<a href="https://physionet.org/content/mimiciv/3.1/" target="_blank" rel="noopener noreferrer">MIMIC-IV来源规则</a> · <a href="https://physionet.org/content/eicu-crd/2.0/" target="_blank" rel="noopener noreferrer">eICU来源</a></p></details>
+    </section>
+  </main>
+  <footer><span>研究模型版本 2026-10-09</span><span>模型与输入本地计算 · 不上传、不留存</span></footer>
+</body>
+</html>
